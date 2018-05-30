@@ -45,6 +45,9 @@
 #include "CorbaConnPolicy.hpp"
 #include "ApplicationServer.hpp"
 
+#include <rtt/os/Mutex.hpp>
+#include <rtt/os/MutexLock.hpp>
+
 namespace RTT {
 
     namespace corba {
@@ -74,6 +77,16 @@ namespace RTT {
         std::string localUri;
 
         ConnPolicy policy;
+
+        /**
+         * A mutex to protect the channel pipeline from concurrent incoming writes and other
+         * method invocations.
+         * Depending on the CORBA implementation and its configuration the RemoteChannel interface
+         * might be accessed by multiple threads concurrently.
+         *
+         * @todo Remove after https://github.com/orocos-toolchain/rtt/pull/250 has been merged.
+         */
+        RTT::os::Mutex remote_call_mutex;
 
         public:
             /**
@@ -118,7 +131,10 @@ namespace RTT {
             void remoteSignal() ACE_THROW_SPEC ((
                     CORBA::SystemException
                   ))
-            { base::ChannelElement<T>::signal(); }
+            {
+                RTT::os::MutexLock lock(remote_call_mutex);
+                base::ChannelElement<T>::signal();
+            }
 
             bool signal()
             {
@@ -176,6 +192,8 @@ namespace RTT {
             }
 
             void disconnect() {
+                RTT::os::MutexLock lock(remote_call_mutex);
+
                 // disconnect both local and remote side.
                 // !!!THIS RELIES ON BEHAVIOR OF REMOTEDISCONNECT BELOW doing both forward and !forward !!!
                 try {
@@ -195,6 +213,8 @@ namespace RTT {
                     CORBA::SystemException
                   ))
             {
+                RTT::os::MutexLock lock(remote_call_mutex);
+
                 base::ChannelElement<T>::disconnect(0, forward);
 
                 // Because we support out-of-band transports, we must cleanup more thoroughly.
@@ -212,6 +232,7 @@ namespace RTT {
 
             bool disconnect(const base::ChannelElementBase::shared_ptr& channel, bool forward)
             {
+                RTT::os::MutexLock lock(remote_call_mutex);
                 bool success = false;
 
                 try {
@@ -294,6 +315,7 @@ namespace RTT {
                     CORBA::SystemException
                   ))
             {
+                RTT::os::MutexLock lock(remote_call_mutex);
 
                 FlowStatus fs;
                 typename internal::ValueDataSource<T> value_data_source;
@@ -372,6 +394,8 @@ namespace RTT {
                     CORBA::SystemException
                   ))
             {
+                RTT::os::MutexLock lock(remote_call_mutex);
+
                 typename internal::ValueDataSource<T> value_data_source;
                 value_data_source.ref();
                 if (!transport.updateFromAny(&sample, &value_data_source)) {
@@ -430,8 +454,9 @@ namespace RTT {
             /**
              * CORBA IDL function.
              */
-            virtual bool inputReady()
-            {
+            virtual bool inputReady() {
+                RTT::os::MutexLock lock(remote_call_mutex);
+
                 // signal to oob transport if any.
                 typename base::ChannelElement<T>::shared_ptr input =
                     this->getInput();
