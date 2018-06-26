@@ -85,6 +85,7 @@ boost::unit_test::test_suite* init_unit_test_suite(int argc, char** const argv)
 #endif
 	__os_init(argc, argv);
 
+#if 0
     // disable logging of errors or warnings if no ORO_LOGLEVEL was set.
     if ( log().getLogLevel() == Logger::Warning ) {
         log(Info) << "Lowering LogLevel to Critical." << endlog();
@@ -92,6 +93,7 @@ boost::unit_test::test_suite* init_unit_test_suite(int argc, char** const argv)
     } else {
         log(Info) << "LogLevel unaltered by test-runner." << endlog();
     }
+#endif
 
     return 0;
 }
