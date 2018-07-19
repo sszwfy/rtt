@@ -191,16 +191,23 @@ namespace RTT {
 
             }
 
-            void disconnect() {
-                RTT::os::MutexLock lock(remote_call_mutex);
+            /**
+             * CORBA IDL function.
+             */
+            void disconnect() ACE_THROW_SPEC ((
+          	      CORBA::SystemException
+          	    )) {
+                {
+                    RTT::os::MutexLock lock(remote_call_mutex);
 
-                // disconnect both local and remote side.
-                // !!!THIS RELIES ON BEHAVIOR OF REMOTEDISCONNECT BELOW doing both forward and !forward !!!
-                try {
-                    if ( ! CORBA::is_nil(remote_side.in()) )
-                        remote_side->remoteDisconnect(true);
+                    // disconnect both local and remote side.
+                    // !!!THIS RELIES ON BEHAVIOR OF REMOTEDISCONNECT BELOW doing both writer_to_reader and !writer_to_reader !!!
+                    try {
+                        if ( ! CORBA::is_nil(remote_side.in()) )
+                            remote_side->remoteDisconnect(true);
+                    }
+                    catch(CORBA::Exception&) {}
                 }
-                catch(CORBA::Exception&) {}
 
                 try { this->remoteDisconnect(true); }
                 catch(CORBA::Exception&) {}
@@ -232,7 +239,6 @@ namespace RTT {
 
             bool disconnect(const base::ChannelElementBase::shared_ptr& channel, bool forward)
             {
-                RTT::os::MutexLock lock(remote_call_mutex);
                 bool success = false;
 
                 try {
