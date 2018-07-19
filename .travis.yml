@@ -20,4 +20,5 @@ install:
 script:
   # Run tests
   - export BOOST_TEST_LOG_LEVEL=message
+  - export ORO_LOGLEVEL=3
   - make -j1 check
